@@ -462,7 +462,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 
 bool
 L1EGCrystalClusterProducer::cluster_passes_cuts(const l1slhc::L1EGCrystalCluster& cluster) const {
-   return true;
+   //return true;
    
    // Currently this producer is optimized based on cluster isolation and shower shape
    // the previous H/E cut has been removed for the moment.
