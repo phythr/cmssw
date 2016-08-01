@@ -241,6 +241,11 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float ECalPileUpEnergy = 0.;
       float upperSideLobePt = 0.;
       float lowerSideLobePt = 0.;
+      float e2x5_1 = 0.;
+      float e2x5_2 = 0.;
+      float e2x5 = 0.;
+      float e5x5 = 0.;
+      float e3x5 = 0.;
       std::vector<float> crystalPt;
       std::map<int, float> phiStrip;
       for(auto& hit : ecalhits)
@@ -270,6 +275,28 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          {
             phiStrip[hit.diphi(centerhit)] = hit.pt();
          }
+
+	 // Build 3x5, 5x5 and E2x5 variables
+         if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
+         {
+            e5x5 += hit.energy;
+         }
+         if ( abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3 )
+         {
+            e3x5 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3 )
+         {
+            e2x5_1 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) < 3 )
+         {
+            e2x5_2 += hit.energy;
+         }
+	 e2x5 = TMath::Max( e2x5_1, e2x5_2 );
+	 params["E2x5"] = e2x5;
+	 params["E3x5"] = e3x5;
+	 params["E5x5"] = e5x5;
 
          // Isolation and pileup must not use hits used in the cluster
          // As for the endcap hits, well, as far as this algorithm is concerned, caveat emptor...
@@ -435,6 +462,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 
 bool
 L1EGCrystalClusterProducer::cluster_passes_cuts(const l1slhc::L1EGCrystalCluster& cluster) const {
+   //return true;
    // cuts were optimized before pt correction was implemented (uncorrectedPt is core 3x5 crystals)
    float cut_pt = cluster.GetExperimentalParam("uncorrectedPt");
    if ( fabs(cluster.eta()) > 1.479 )
