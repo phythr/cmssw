@@ -144,21 +144,23 @@ L1EGCrystalClusterProducer::L1EGCrystalClusterProducer(const edm::ParameterSet& 
 
 void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-   //if ( geometryHelper.getEcalBarrelGeometry() == nullptr )
-   //{
-   //   edm::ESHandle<CaloTopology> theCaloTopology;
-   //   iSetup.get<CaloTopologyRecord>().get(theCaloTopology);
-   //   edm::ESHandle<CaloGeometry> pG;
-   //   iSetup.get<CaloGeometryRecord>().get(pG);
-   //   double bField000 = 4.;
-   //   if ( !pG.isValid() || !theCaloTopology.isValid() ) { std::cout << "Bad times" << std::endl;
-   //     return;}
-   //   else {
-   //   geometryHelper.setupGeometry(*pG);
-   //   geometryHelper.setupTopology(*theCaloTopology);
-   //   geometryHelper.initialize(bField000);
-   //   }
-   //}
+   if ( geometryHelper.getEcalBarrelGeometry() == nullptr )
+   {
+      edm::ESHandle<CaloTopology> theCaloTopology;
+      iSetup.get<CaloTopologyRecord>().get(theCaloTopology);
+      edm::ESHandle<CaloGeometry> pG;
+      iSetup.get<CaloGeometryRecord>().get(pG);
+      double bField000 = 4.;
+      if ( !pG.isValid() || !theCaloTopology.isValid() ) { std::cout << "Bad times" << std::endl;
+        return;}
+      else {
+      geometryHelper.setupGeometry(*pG);
+      geometryHelper.setupTopology(*theCaloTopology);
+      std::cout << "Pre-Initialize" << std::endl;
+      geometryHelper.initialize(bField000);
+      std::cout << "Post-Initialize" << std::endl;
+      }
+   }
    
    std::vector<SimpleCaloHit> ecalhits;
    std::vector<SimpleCaloHit> hcalhits;
@@ -173,15 +175,13 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    {
       if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
       {
-         //auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
+         auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
          SimpleCaloHit ehit;
          ehit.id = hit.id();
-         std::cout << "Hit energy > 2" << std::endl;
          // So, apparently there are (at least) two competing basic vector classes being tossed around in
          // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
          // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
-         //ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         ehit.position = GlobalVector(0., 0., 0.); 
+         ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
          ehit.energy = hit.energy();
          ecalhits.push_back(ehit);
       }
@@ -198,12 +198,11 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       {
          if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
          {
-            //auto cell = geometryHelper.getEcalEndcapGeometry()->getGeometry(hit.id());
+            auto cell = geometryHelper.getEcalEndcapGeometry()->getGeometry(hit.id());
             SimpleCaloHit ehit;
             // endcap cell ids won't have any relation to barrel hits
             ehit.id = hit.id();
-            //ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-            ehit.position = GlobalVector(0., 0., 0.); 
+            ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
             ehit.energy = hit.energy();
             ehit.isEndcapHit = true;
             ecalhits.push_back(ehit);
@@ -220,11 +219,10 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    {
       if ( hit.energy() > 0.1 )
       {
-         //auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
+         auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
          SimpleCaloHit hhit;
          hhit.id = hit.id();
-         //hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         hhit.position = GlobalVector(0., 0., 0.); 
+         hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
          hhit.energy = hit.energy();
          hcalhits.push_back(hhit);
       }

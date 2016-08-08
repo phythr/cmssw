@@ -16,6 +16,7 @@ process.source = cms.Source("PoolSource",
    #fileNames = cms.untracked.vstring('file:/hdfs/store/mc/TTI2023Upg14D/SingleElectronFlatPt0p2To50/GEN-SIM-DIGI-RAW/PU140bx25_PH2_1K_FB_V3-v2/00000/80EE54BB-1EE6-E311-877F-002354EF3BE0.root')
    #fileNames = cms.untracked.vstring('file:root://cmsxrootd.fnal.gov///store/relval/CMSSW_8_1_0_pre9/RelValSingleElectronPt35Extended/GEN-SIM-DIGI-RAW/81X_mcRun2_asymptotic_v2_2023LReco-v1/10000/0E8B87C3-4953-E611-A003-0CC47A4D762A.root')
    fileNames = cms.untracked.vstring('file:root://cmsxrootd.fnal.gov///store/relval/CMSSW_8_1_0_pre9/RelValSingleElectronPt35Extended/GEN-SIM-RECO/81X_mcRun2_asymptotic_v2_2023LReco-v1/10000/72FC7A8C-4E53-E611-95D6-0CC47A78A360.root')
+   #fileNames = cms.untracked.vstring('file:root://cmsxrootd.fnal.gov///store/relval/CMSSW_8_0_5/RelValQCD_FlatPt_15_3000HS_13/GEN-SIM-RECO/PU25ns_80X_mcRun2_asymptotic_2016_miniAODv2_v0_gs71xJecGT-v1/00000/06A1518F-3311-E611-BC5A-0CC47A78A496.root')
 )
 
 # All this stuff just runs the various EG algorithms that we are studying
@@ -26,8 +27,12 @@ from Configuration.AlCa.GlobalTag import GlobalTag
 #process.GlobalTag = GlobalTag(process.GlobalTag, 'PH2_1K_FB_V3::All', '')
 process.GlobalTag = GlobalTag(process.GlobalTag, 'auto:run2_mc', '')
 
-#process.load('Configuration.Geometry.GeometryExtended2023TTIReco_cff')
-process.load('Configuration.Geometry.GeometryExtended2023simReco_cff')
+# Choose a 2030 geometry!
+#process.load('Configuration.Geometry.GeometryExtended2023simReco_cff') # Has CaloTopology, but no ECal endcap, don't use!
+process.load('Configuration.Geometry.GeometryExtended2023GRecoReco_cff') # using this geometry because I'm not sure if the tilted geometry is vetted yet
+#process.load('Configuration.Geometry.GeometryExtended2023tiltedReco_cff') # this one good?
+
+#process.load('Configuration.Geometry.GeometryExtended2016Reco_cff')
 process.load('Configuration.StandardSequences.MagneticField_38T_PostLS1_cff')
 #XXX process.load('Configuration.StandardSequences.L1TrackTrigger_cff')
 #XXX process.load('Geometry.TrackerGeometryBuilder.StackedTrackerGeometry_cfi')
@@ -66,6 +71,7 @@ process.L1EGammaCrystalsProducer = cms.EDProducer("L1EGCrystalClusterProducer",
    useECalEndcap = cms.bool(True),
    ecalRecHitEB = cms.InputTag("ecalRecHit","EcalRecHitsEB","RECO"),
    ecalRecHitEE = cms.InputTag("ecalRecHit","EcalRecHitsEE","RECO"),
+   #hcalRecHit = cms.InputTag("hbhereco") # for testing non-2023 geometry configurations
    hcalRecHit = cms.InputTag("hbheUpgradeReco")
 )
 
@@ -86,6 +92,7 @@ process.end = cms.EndPath( process.Out )
 
 
 #print process.dumpPython()
-
+dump_file = open("dump_file.py", "w")
+dump_file.write(process.dumpPython())
 
 
