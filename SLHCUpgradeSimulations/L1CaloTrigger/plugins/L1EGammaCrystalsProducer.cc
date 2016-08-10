@@ -156,9 +156,9 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       else {
       geometryHelper.setupGeometry(*pG);
       geometryHelper.setupTopology(*theCaloTopology);
-      std::cout << "Pre-Initialize" << std::endl;
+      std::cout << "Pre-Initialize Geometry Helper" << std::endl;
       geometryHelper.initialize(bField000);
-      std::cout << "Post-Initialize" << std::endl;
+      std::cout << "Post-Initialize Geometry Helper" << std::endl;
       }
    }
    
