@@ -155,6 +155,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    for(auto& hit : *pcalohits.product())
    {
       if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+      //if(hit.energy() > 0.5 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
       {
          auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
          SimpleCaloHit ehit;
@@ -177,6 +178,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       for(auto& hit : *pcalohitsEndcap.product())
       {
          if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+         //if(hit.energy() > 0.5 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
          {
             auto cell = geometryHelper.getEcalEndcapGeometry()->getGeometry(hit.id());
             SimpleCaloHit ehit;
@@ -238,9 +240,26 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       GlobalVector ECalPileUpVector;
       float totalEnergy = 0.;
       float ECalIsolation = 0.;
+      float ECalIsolationGrt500 = 0.;
+      float ECalIsolationGrt1 = 0.;
+      float ECalIsolationGrt2 = 0.;
       float ECalPileUpEnergy = 0.;
+      float ECalPileUpEnergy0to500 = 0.;
+      float ECalPileUpEnergy500to1 = 0.;
+      float ECalPileUpEnergy1to2 = 0.;
+      float ECalPileUpEnergy2to3 = 0.;
+      float ECalPileUpEnergy3to4 = 0.;
+      float ECalPileUpEnergy4to5 = 0.;
       float upperSideLobePt = 0.;
       float lowerSideLobePt = 0.;
+      float e2x2_1 = 0.;
+      float e2x2_2 = 0.;
+      float e2x2_3 = 0.;
+      float e2x2_4 = 0.;
+      float e2x2 = 0.;
+      float e2x3_1 = 0.;
+      float e2x3_2 = 0.;
+      float e2x3 = 0.;
       float e2x5_1 = 0.;
       float e2x5_2 = 0.;
       float e2x5 = 0.;
@@ -276,15 +295,43 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             phiStrip[hit.diphi(centerhit)] = hit.pt();
          }
 
-	 // Build 3x5, 5x5 and E2x5 variables
+         // Build 2x2, 2x3, 3x5, 5x5 and E2x5 variables
          if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
          {
             e5x5 += hit.energy;
          }
+         // 3x5
          if ( abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3 )
          {
             e3x5 += hit.energy;
          }
+         // 2x2
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == 1) )
+         {
+            e2x2_1 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == -1) )
+         {
+            e2x2_2 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == 1) )
+         {
+            e2x2_3 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == -1) )
+         {
+            e2x2_4 += hit.energy;
+         }
+         // 2x3
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 2 )
+         {
+            e2x3_1 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) < 2 )
+         {
+            e2x3_2 += hit.energy;
+         }
+         // 2x5
          if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3 )
          {
             e2x5_1 += hit.energy;
@@ -293,6 +340,12 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          {
             e2x5_2 += hit.energy;
          }
+	 e2x2 = TMath::Max( e2x2_1, e2x2_2 );
+	 e2x2 = TMath::Max( e2x2, e2x2_3 );
+	 e2x2 = TMath::Max( e2x2, e2x2_4 );
+	 params["E2x2"] = e2x2;
+	 e2x3 = TMath::Max( e2x3_1, e2x3_2 );
+	 params["E2x3"] = e2x3;
 	 e2x5 = TMath::Max( e2x5_1, e2x5_2 );
 	 params["E2x5"] = e2x5;
 	 params["E3x5"] = e3x5;
@@ -309,6 +362,12 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
                ECalIsolation += hit.pt();
                if ( hit.pt() > 1. )
                   params["nIsoCrystals1"]++;
+               if ( hit.pt() > 0.5 )
+                  ECalIsolationGrt500 += hit.pt();
+               if ( hit.pt() > 1. )
+                  ECalIsolationGrt1 += hit.pt();
+               if ( hit.pt() > 2. )
+                  ECalIsolationGrt2 += hit.pt();
             }
             if ( (!centerhit.isEndcapHit && abs(hit.dieta(centerhit)) < 2 && hit.diphi(centerhit) >= 3 && hit.diphi(centerhit) < 8)
                  || (centerhit.isEndcapHit && fabs(hit.deta(centerhit)) < 0.02 && hit.dphi(centerhit) >= 0.0173*3 && hit.dphi(centerhit) < 0.0173*8 ))
@@ -326,6 +385,12 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             {
                ECalPileUpEnergy += hit.energy;
                ECalPileUpVector += hit.position;
+               if ( hit.pt() < 0.5) ECalPileUpEnergy0to500 += hit.energy;
+               if ( hit.pt() < 1. && hit.pt() > .5) ECalPileUpEnergy500to1 += hit.energy;
+               if ( hit.pt() < 2. && hit.pt() > 1.) ECalPileUpEnergy1to2 += hit.energy;
+               if ( hit.pt() < 3. && hit.pt() > 2.) ECalPileUpEnergy2to3 += hit.energy;
+               if ( hit.pt() < 4. && hit.pt() > 3.) ECalPileUpEnergy3to4 += hit.energy;
+               if ( hit.pt() > 4.) ECalPileUpEnergy4to5 += hit.energy;
             }
          }
       }
@@ -416,6 +481,19 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       params["upperSideLobePt"] = upperSideLobePt;
       params["lowerSideLobePt"] = lowerSideLobePt;
       ECalIsolation /= params["uncorrectedPt"];
+      ECalIsolationGrt500 /= params["uncorrectedPt"];
+      params["ECalIsolationGrt500"] = ECalIsolationGrt500;
+      ECalIsolationGrt1 /= params["uncorrectedPt"];
+      params["ECalIsolationGrt1"] = ECalIsolationGrt1;
+      ECalIsolationGrt2 /= params["uncorrectedPt"];
+      params["ECalIsolationGrt2"] = ECalIsolationGrt2;
+      params["ecalPUEnergyToPt"] = ECalPileUpEnergy*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt0to500"] = ECalPileUpEnergy0to500*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt500to1"] = ECalPileUpEnergy500to1*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt1to2"] = ECalPileUpEnergy1to2*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt2to3"] = ECalPileUpEnergy2to3*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt3to4"] = ECalPileUpEnergy3to4*sin(ECalPileUpVector.theta());
+      params["ecalPUEnergyToPt4to5"] = ECalPileUpEnergy4to5*sin(ECalPileUpVector.theta());
       float totalPtPUcorr = params["uncorrectedPt"] - ECalPileUpEnergy*sin(ECalPileUpVector.theta())/19.;
       float bremStrength = params["uncorrectedPt"] / correctedTotalPt;
 
