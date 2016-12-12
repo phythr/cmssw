@@ -62,6 +62,12 @@ Implementation:
 
 #include "Geometry/Records/interface/IdealGeometryRecord.h"
 
+// ECAL TPs
+#include "SimCalorimetry/EcalEBTrigPrimProducers/plugins/EcalEBTrigPrimProducer.h"
+#include "DataFormats/EcalDigi/interface/EcalEBTriggerPrimitiveDigi.h"
+// HCAL TPs stick with RecHits for now because the calo geometry helper is not ready for HCAL
+//#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveDigi.h"
+
 class L1EGCrystalClusterProducer : public edm::EDProducer {
    public:
       explicit L1EGCrystalClusterProducer(const edm::ParameterSet&);
@@ -74,9 +80,11 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
       double EtminForStore;
       bool debug;
       bool useECalEndcap;
-      edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEBToken_;
-      edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEEToken_;
-      edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
+      //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEBToken_;
+      edm::EDGetTokenT<EcalEBTrigPrimDigiCollection> ecalTPEBToken_;
+      //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEEToken_;
+      //edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
+      //edm::EDGetTokenT< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hcalTPToken_;
 
       class SimpleCaloHit
       {
@@ -133,9 +141,11 @@ L1EGCrystalClusterProducer::L1EGCrystalClusterProducer(const edm::ParameterSet& 
    EtminForStore(iConfig.getParameter<double>("EtminForStore")),
    debug(iConfig.getUntrackedParameter<bool>("debug", false)),
    useECalEndcap(iConfig.getParameter<bool>("useECalEndcap")),
-   ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
-   ecalRecHitEEToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEE"))),
-   hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit")))
+   //ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
+   ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB")))
+   //ecalRecHitEEToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEE"))),
+   //hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit")))
+   //hcalTPToken_(consumes< edm::SortedCollection<HcalTriggerPrimitiveDigi> >(iConfig.getParameter<edm::InputTag>("hcalTP")))
 
 {
    produces<l1slhc::L1EGCrystalClusterCollection>("EGCrystalCluster");
@@ -163,17 +173,20 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    }
    
    std::vector<SimpleCaloHit> ecalhits;
-   std::vector<SimpleCaloHit> hcalhits;
+//   std::vector<SimpleCaloHit> hcalhits;
    
    // Retrieve the ecal barrel hits
    // using RecHits (https://cmssdt.cern.ch/SDT/doxygen/CMSSW_6_1_2_SLHC6/doc/html/d8/dc9/classEcalRecHit.html)
-   edm::Handle<EcalRecHitCollection> pcalohits;
+   //edm::Handle<EcalRecHitCollection> pcalohits;
    //iEvent.getByLabel("ecalRecHit","EcalRecHitsEB","RECO",pcalohits);
    //iEvent.getByLabel("ecalRecHit:EcalRecHitsEB:RECO",pcalohits);
-   iEvent.getByToken(ecalRecHitEBToken_,pcalohits);
+   edm::Handle<EcalEBTrigPrimDigiCollection> pcalohits;
+   iEvent.getByToken(ecalTPEBToken_,pcalohits);
    for(auto& hit : *pcalohits.product())
    {
-      if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+      // Have to comment out kOutOfTime and kLiSpikeFlag because we're testing basic TPs
+      //if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+      if(hit.compressedEt() > 0 && !hit.l1aSpike()) // hit.compressedEt() returns an int corresponding to 2x the crystal Et
       {
          auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
          SimpleCaloHit ehit;
@@ -182,51 +195,59 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
          // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
          ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         ehit.energy = hit.energy();
+         ehit.energy = hit.compressedEt()/2. ;
+         std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
          ecalhits.push_back(ehit);
       }
    }
    
-   if ( useECalEndcap )
-   {
-      // Retrieve the ecal endcap hits
-      // using RecHits (https://cmssdt.cern.ch/SDT/doxygen/CMSSW_6_1_2_SLHC6/doc/html/d8/dc9/classEcalRecHit.html)
-      edm::Handle<EcalRecHitCollection> pcalohitsEndcap;
-      iEvent.getByToken(ecalRecHitEEToken_,pcalohitsEndcap);
-      //iEvent.getByLabel("ecalRecHit","EcalRecHitsEE",pcalohitsEndcap);
-      for(auto& hit : *pcalohitsEndcap.product())
-      {
-         if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
-         {
-            auto cell = geometryHelper.getEcalEndcapGeometry()->getGeometry(hit.id());
-            SimpleCaloHit ehit;
-            // endcap cell ids won't have any relation to barrel hits
-            ehit.id = hit.id();
-            ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-            ehit.energy = hit.energy();
-            ehit.isEndcapHit = true;
-            ecalhits.push_back(ehit);
-         }
-      }
-   }
+   //if ( useECalEndcap )
+   //{
+   //   // Retrieve the ecal endcap hits
+   //   // using RecHits (https://cmssdt.cern.ch/SDT/doxygen/CMSSW_6_1_2_SLHC6/doc/html/d8/dc9/classEcalRecHit.html)
+   //   edm::Handle<EcalRecHitCollection> pcalohitsEndcap;
+   //   iEvent.getByToken(ecalRecHitEEToken_,pcalohitsEndcap);
+   //   //iEvent.getByLabel("ecalRecHit","EcalRecHitsEE",pcalohitsEndcap);
+   //   for(auto& hit : *pcalohitsEndcap.product())
+   //   {
+   //      if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+   //      {
+   //         auto cell = geometryHelper.getEcalEndcapGeometry()->getGeometry(hit.id());
+   //         SimpleCaloHit ehit;
+   //         // endcap cell ids won't have any relation to barrel hits
+   //         ehit.id = hit.id();
+   //         ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
+   //         ehit.energy = hit.energy();
+   //         ehit.isEndcapHit = true;
+   //         ecalhits.push_back(ehit);
+   //      }
+   //   }
+   //}
 
-   // Retrive hcal hits
-   edm::Handle<HBHERecHitCollection> hbhecoll;
-   //iEvent.getByLabel("hbheprereco", hbhecoll);
-   //iEvent.getByLabel("hbheUpgradeReco", hbhecoll);
-   iEvent.getByToken(hcalRecHitToken_,hbhecoll);
-   for (auto& hit : *hbhecoll.product())
-   {
-      if ( hit.energy() > 0.1 )
-      {
-         auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
-         SimpleCaloHit hhit;
-         hhit.id = hit.id();
-         hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         hhit.energy = hit.energy();
-         hcalhits.push_back(hhit);
-      }
-   }
+   // Retrive HCAL hits 
+//   edm::Handle<HBHERecHitCollection> hbhecoll;
+//   //iEvent.getByLabel("hbheprereco", hbhecoll);
+//   //iEvent.getByLabel("hbheUpgradeReco", hbhecoll);
+//   //iEvent.getByLabel("hltHbhereco", hbhecoll);
+//   iEvent.getByToken(hcalRecHitToken_,hbhecoll);
+//   //edm::Handle< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hbhecoll;
+//   //iEvent.getByToken(hcalTPToken_,hbhecoll);
+//   for (auto& hit : *hbhecoll.product())
+//   {
+//      //std::cout << "  -- HCAL TP: " << hit.SOI_compressedEt() << std::endl;
+//      //if ( hit.SOI_compressedEt() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
+//      if ( hit.energy() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
+//        // Need to use proper decompression here https://github.com/cms-sw/cmssw/blob/CMSSW_9_0_X/L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.cc#L97-L114
+//      {
+//         auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
+//         SimpleCaloHit hhit;
+//         hhit.id = hit.id();
+//         hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
+//         //hhit.energy = hit.SOI_compressedEt();
+//         hhit.energy = hit.energy();
+//         hcalhits.push_back(hhit);
+//      }
+//   }
 
    // Cluster containters
    std::unique_ptr<l1slhc::L1EGCrystalClusterCollection> trigCrystalClusters (new l1slhc::L1EGCrystalClusterCollection );
@@ -448,13 +469,13 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 
       // Calculate H/E
       float hcalEnergy = 0.;
-      for(const auto& hit : hcalhits)
-      {
-         if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
-         {
-            hcalEnergy += hit.energy;
-         }
-      }
+//      for(const auto& hit : hcalhits)
+//      {
+//         if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
+//         {
+//            hcalEnergy += hit.energy;
+//         }
+//      }
       float hovere = hcalEnergy/params["uncorrectedE"];
 
       if ( debug ) std::cout << "H/E: " << hovere << std::endl;
