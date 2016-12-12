@@ -229,8 +229,8 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    }
 
    // Cluster containters
-   std::auto_ptr<l1slhc::L1EGCrystalClusterCollection> trigCrystalClusters (new l1slhc::L1EGCrystalClusterCollection );
-   std::auto_ptr<l1extra::L1EmParticleCollection> l1EGammaCrystal( new l1extra::L1EmParticleCollection );
+   std::unique_ptr<l1slhc::L1EGCrystalClusterCollection> trigCrystalClusters (new l1slhc::L1EGCrystalClusterCollection );
+   std::unique_ptr<l1extra::L1EmParticleCollection> l1EGammaCrystal( new l1extra::L1EmParticleCollection );
    
    // Clustering algorithm
    while(true)
@@ -478,8 +478,8 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       }
    }
 
-   iEvent.put(trigCrystalClusters,"EGCrystalCluster");
-   iEvent.put(l1EGammaCrystal, "EGammaCrystal" );
+   iEvent.put(std::move(trigCrystalClusters),"EGCrystalCluster");
+   iEvent.put(std::move(l1EGammaCrystal), "EGammaCrystal" );
 }
 
 bool
