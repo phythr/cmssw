@@ -195,7 +195,8 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
          // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
          ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         ehit.energy = hit.compressedEt()/2. ;
+         float et = hit.compressedEt()/2.;
+         ehit.energy = et / sin(ehit.position.theta());
          std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
          ecalhits.push_back(ehit);
       }
