@@ -17,4 +17,5 @@
 <use   name="DataFormats/EcalDigi"/>
 <use   name="RecoLocalCalo/Configuration"/>
 <use   name="root"/>
+<use   name="boost"/>
 <flags EDM_PLUGIN="1"/>

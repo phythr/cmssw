@@ -68,6 +68,11 @@ Implementation:
 // HCAL TPs stick with RecHits for now because the calo geometry helper is not ready for HCAL
 //#include "DataFormats/HcalDigi/interface/HcalTriggerPrimitiveDigi.h"
 
+// Adding boost to read json files for tower mapping
+#include "boost/property_tree/ptree.hpp"
+#include "boost/property_tree/json_parser.hpp"
+#include <string.h>
+
 class L1EGCrystalClusterProducer : public edm::EDProducer {
    public:
       explicit L1EGCrystalClusterProducer(const edm::ParameterSet&);
@@ -85,6 +90,9 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
       //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEEToken_;
       //edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
       //edm::EDGetTokenT< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hcalTPToken_;
+      boost::property_tree::ptree towerMap;
+      bool useTowerMap;
+      std::string towerMapName;
 
       class SimpleCaloHit
       {
@@ -142,14 +150,22 @@ L1EGCrystalClusterProducer::L1EGCrystalClusterProducer(const edm::ParameterSet& 
    debug(iConfig.getUntrackedParameter<bool>("debug", false)),
    useECalEndcap(iConfig.getParameter<bool>("useECalEndcap")),
    //ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
-   ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB")))
+   ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB"))),
    //ecalRecHitEEToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEE"))),
    //hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit")))
    //hcalTPToken_(consumes< edm::SortedCollection<HcalTriggerPrimitiveDigi> >(iConfig.getParameter<edm::InputTag>("hcalTP")))
+   useTowerMap(iConfig.getUntrackedParameter<bool>("useTowerMap", false)),
+   towerMapName(iConfig.getUntrackedParameter<std::string>("towerMapName", "defaultMap.json"))
 
 {
    produces<l1slhc::L1EGCrystalClusterCollection>("EGCrystalCluster");
    produces<l1extra::L1EmParticleCollection>("EGammaCrystal");
+   
+   // Get tower mapping
+   if (useTowerMap) {
+      std::cout << "Using tower mapping for ECAL regions.  Map name: " << towerMapName << std::endl;
+      read_json(towerMapName, towerMap);
+   }
 }
 
 void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
@@ -182,6 +198,8 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    //iEvent.getByLabel("ecalRecHit:EcalRecHitsEB:RECO",pcalohits);
    edm::Handle<EcalEBTrigPrimDigiCollection> pcalohits;
    iEvent.getByToken(ecalTPEBToken_,pcalohits);
+   int totNumHits = 0;
+   int totNumHitsZero = 0;
    for(auto& hit : *pcalohits.product())
    {
       // Have to comment out kOutOfTime and kLiSpikeFlag because we're testing basic TPs
@@ -197,10 +215,15 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
          float et = hit.compressedEt()/2.;
          ehit.energy = et / sin(ehit.position.theta());
-         std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
+         //std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
+         //std::cout << " -- iPhi: " << ehit.id.iphi() << std::endl;
+         //std::cout << " -- iEta: " << ehit.id.ieta() << std::endl;
          ecalhits.push_back(ehit);
+         totNumHits++;
       }
+      else {totNumHitsZero++;}
    }
+   //std::cout << "TOTAL HITS: " << totNumHits << "   ZERO: " << totNumHitsZero << std::endl;
    
    //if ( useECalEndcap )
    //{
@@ -292,8 +315,31 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float e3x5 = 0.;
       std::vector<float> crystalPt;
       std::map<int, float> phiStrip;
+      //std::cout << " -- iPhi: " << ehit.id.iphi() << std::endl;
+      //std::cout << " -- iEta: " << ehit.id.ieta() << std::endl;
+      //std::cout << "2nd JSON mapping for tower iEta -5, iPhi 7: " << towerMap.get<std::string>(key) << std::endl;
+      std::string towerKey;
+      std::string centerHitTowerRegion;
+      if (useTowerMap) {
+         towerKey = "("+std::to_string(centerhit.id.ieta())+
+            ", "+std::to_string(centerhit.id.iphi())+")";
+         centerHitTowerRegion = towerMap.get<std::string>(towerKey);
+      }
+
       for(auto& hit : ecalhits)
       {
+
+         // If using tower regions, check that we match with the centerHit
+         if (useTowerMap) {
+            towerKey = "("+std::to_string(hit.id.ieta())+
+                  ", "+std::to_string(hit.id.iphi())+")";
+            if (centerHitTowerRegion != towerMap.get<std::string>(towerKey)) {
+                if (debug) std::cout << "Skipping hit. CenterHitRegion: " << centerHitTowerRegion <<
+                    "    currentHitRegion: " << towerMap.get<std::string>(towerKey) << std::endl;
+                continue;
+            }
+         }
+
          if ( !hit.stale &&
                ( (!centerhit.isEndcapHit && abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3)
                 || (centerhit.isEndcapHit && hit.distanceTo(centerhit) < 3.5*1.41 ) )) // endcap crystals are 30mm on a side, 3.5*sqrt(2) cm radius should enclose 3x3
