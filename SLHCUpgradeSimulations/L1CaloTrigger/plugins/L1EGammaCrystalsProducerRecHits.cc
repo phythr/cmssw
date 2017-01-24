@@ -171,6 +171,8 @@ void L1EGammaCrystalsProducerRecHits::produce(edm::Event& iEvent, const edm::Eve
    //iEvent.getByLabel("ecalRecHit","EcalRecHitsEB","RECO",pcalohits);
    //iEvent.getByLabel("ecalRecHit:EcalRecHitsEB:RECO",pcalohits);
    iEvent.getByToken(ecalRecHitEBToken_,pcalohits);
+   float hitEt;
+   float hitEnergy;
    for(auto& hit : *pcalohits.product())
    {
       if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
@@ -178,12 +180,16 @@ void L1EGammaCrystalsProducerRecHits::produce(edm::Event& iEvent, const edm::Eve
          auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
          SimpleCaloHit ehit;
          ehit.id = hit.id();
-         // So, apparently there are (at least) two competing basic vector classes being tossed around in
-         // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
-         // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
          ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         ehit.energy = hit.energy();
-         ecalhits.push_back(ehit);
+         hitEnergy = hit.energy();
+         hitEt = hitEnergy * sin(ehit.position.theta());
+         if (hitEt > 0.5) { // Add this extra requirement to mimic ECAL TPs 500 MeV ET Min
+            // So, apparently there are (at least) two competing basic vector classes being tossed around in
+            // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
+            // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
+            ehit.energy = hit.energy();
+            ecalhits.push_back(ehit);
+         }
       }
    }
    

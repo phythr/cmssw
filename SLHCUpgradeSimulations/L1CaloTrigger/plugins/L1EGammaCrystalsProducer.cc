@@ -85,7 +85,8 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
       double EtminForStore;
       bool debug;
       bool useECalEndcap;
-      //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEBToken_;
+      bool useRecHits;
+      edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEBToken_;
       edm::EDGetTokenT<EcalEBTrigPrimDigiCollection> ecalTPEBToken_;
       //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEEToken_;
       //edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
@@ -149,7 +150,8 @@ L1EGCrystalClusterProducer::L1EGCrystalClusterProducer(const edm::ParameterSet& 
    EtminForStore(iConfig.getParameter<double>("EtminForStore")),
    debug(iConfig.getUntrackedParameter<bool>("debug", false)),
    useECalEndcap(iConfig.getParameter<bool>("useECalEndcap")),
-   //ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
+   useRecHits(iConfig.getParameter<bool>("useRecHits")),
+   ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
    ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB"))),
    //ecalRecHitEEToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEE"))),
    //hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit")))
@@ -189,41 +191,65 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    }
    
    std::vector<SimpleCaloHit> ecalhits;
-//   std::vector<SimpleCaloHit> hcalhits;
+   //std::vector<SimpleCaloHit> hcalhits;
    
    // Retrieve the ecal barrel hits
-   // using RecHits (https://cmssdt.cern.ch/SDT/doxygen/CMSSW_6_1_2_SLHC6/doc/html/d8/dc9/classEcalRecHit.html)
-   //edm::Handle<EcalRecHitCollection> pcalohits;
-   //iEvent.getByLabel("ecalRecHit","EcalRecHitsEB","RECO",pcalohits);
-   //iEvent.getByLabel("ecalRecHit:EcalRecHitsEB:RECO",pcalohits);
-   edm::Handle<EcalEBTrigPrimDigiCollection> pcalohits;
-   iEvent.getByToken(ecalTPEBToken_,pcalohits);
-   int totNumHits = 0;
-   int totNumHitsZero = 0;
-   for(auto& hit : *pcalohits.product())
-   {
-      // Have to comment out kOutOfTime and kLiSpikeFlag because we're testing basic TPs
-      //if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
-      if(hit.compressedEt() > 0 && !hit.l1aSpike()) // hit.compressedEt() returns an int corresponding to 2x the crystal Et
+   // Use ECAL TPs unless otherwise specified
+   if (!useRecHits) {
+      edm::Handle<EcalEBTrigPrimDigiCollection> pcalohits;
+      iEvent.getByToken(ecalTPEBToken_,pcalohits);
+      int totNumHits = 0;
+      int totNumHitsZero = 0;
+      for(auto& hit : *pcalohits.product())
       {
-         auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
-         SimpleCaloHit ehit;
-         ehit.id = hit.id();
-         // So, apparently there are (at least) two competing basic vector classes being tossed around in
-         // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
-         // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
-         ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-         float et = hit.compressedEt()/2.;
-         ehit.energy = et / sin(ehit.position.theta());
-         //std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
-         //std::cout << " -- iPhi: " << ehit.id.iphi() << std::endl;
-         //std::cout << " -- iEta: " << ehit.id.ieta() << std::endl;
-         ecalhits.push_back(ehit);
-         totNumHits++;
+         // Have to comment out kOutOfTime and kLiSpikeFlag because we're testing basic TPs
+         //if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+         //if(hit.compressedEt() > 0 && !hit.l1aSpike()) // hit.compressedEt() returns an int corresponding to 2x the crystal Et
+         if(hit.compressedEt() > 0) // hit.compressedEt() returns an int corresponding to 2x the crystal Et
+         {
+            auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
+            SimpleCaloHit ehit;
+            ehit.id = hit.id();
+            // So, apparently there are (at least) two competing basic vector classes being tossed around in
+            // cmssw, the calorimeter geometry package likes to use "DataFormats/GeometryVector/interface/GlobalPoint.h"
+            // while "DataFormats/Math/interface/Point3D.h" also contains a competing definition of GlobalPoint. Oh well...
+            ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
+            float et = hit.compressedEt()/2.;
+            ehit.energy = et / sin(ehit.position.theta());
+            //std::cout << " -- ECAL TP Et: " << ehit.energy << std::endl;
+            //std::cout << totNumHits << " -- ehit iPhi: " << ehit.id.iphi() << " -- tp iPhi: " << hit.id().iphi() << std::endl;
+            //std::cout << " -- iEta: " << ehit.id.ieta() << std::endl;
+            ecalhits.push_back(ehit);
+            totNumHits++;
+         }
+         else {totNumHitsZero++;}
       }
-      else {totNumHitsZero++;}
-   }
-   //std::cout << "TOTAL HITS: " << totNumHits << "   ZERO: " << totNumHitsZero << std::endl;
+      //std::cout << "TOTAL HITS: " << totNumHits << "   ZERO: " << totNumHitsZero << std::endl;
+   } // Done loading ECAL TPs
+
+   if (useRecHits) {
+      // using RecHits (https://cmssdt.cern.ch/SDT/doxygen/CMSSW_6_1_2_SLHC6/doc/html/d8/dc9/classEcalRecHit.html)
+      edm::Handle<EcalRecHitCollection> pcalohits;
+      iEvent.getByToken(ecalRecHitEBToken_,pcalohits);
+      float hitEt;
+      float hitEnergy;
+      for(auto& hit : *pcalohits.product())
+      {
+         if(hit.energy() > 0.2 && !hit.checkFlag(EcalRecHit::kOutOfTime) && !hit.checkFlag(EcalRecHit::kL1SpikeFlag))
+         {
+            auto cell = geometryHelper.getEcalBarrelGeometry()->getGeometry(hit.id());
+            SimpleCaloHit ehit;
+            ehit.id = hit.id();
+            ehit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
+            hitEnergy = hit.energy();
+            hitEt = hitEnergy * sin(ehit.position.theta());
+            if (hitEt > 0.5) { // Add this extra requirement to mimic ECAL TPs 500 MeV ET Min
+               ehit.energy = hit.energy();
+               ecalhits.push_back(ehit);
+            }
+         }
+      }
+   } // Done loading Rec Hits
    
    //if ( useECalEndcap )
    //{
