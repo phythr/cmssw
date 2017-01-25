@@ -21,10 +21,8 @@ Implementation:
 #include "SimDataFormats/Track/interface/SimTrackContainer.h"
 #include "DataFormats/L1Trigger/interface/L1EmParticle.h"
 #include "DataFormats/L1Trigger/interface/L1EmParticleFwd.h"
-//#include "DataFormats/Math/interface/deltaR.h"
-#include "SLHCUpgradeSimulations/L1CaloTrigger/interface/deltaR.h"
-//#include "DataFormats/Math/interface/deltaPhi.h"
-#include "SLHCUpgradeSimulations/L1CaloTrigger/interface/deltaPhi.h"
+#include "DataFormats/Math/interface/deltaR.h"
+#include "DataFormats/Math/interface/deltaPhi.h"
 
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDProducer.h"
@@ -116,7 +114,7 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
                   return id.ieta()-other.id.ieta();
                return id.ieta()-other.id.ieta()-1;
             };
-            inline float dphi(SimpleCaloHit& other) const{return reco::deltaPhi(position.phi(), other.position.phi());};
+            inline float dphi(SimpleCaloHit& other) const{return reco::deltaPhi(static_cast<float>(position.phi()), static_cast<float>(other.position.phi()));};
             int diphi(SimpleCaloHit& other) const
             {
                if ( isEndcapHit || other.isEndcapHit ) return 9999; // We shouldn't compare integer indices in endcap, the map is not linear
