@@ -347,6 +347,8 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float e2x5 = 0.;
       float e5x5 = 0.;
       float e3x5 = 0.;
+      bool electronWP98;
+      bool photonWP90;
       std::vector<float> crystalPt;
       std::map<int, float> phiStrip;
       //std::cout << " -- iPhi: " << ehit.id.iphi() << std::endl;
@@ -596,14 +598,15 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 
 
       // Check if cluster passes electron or photon WPs
-      params["electronWP98"] = cluster_passes_electronWP98( correctedTotalPt, ECalIsolation, e2x5, e5x5);
-      params["photonWP90"] = cluster_passes_photonWP90( correctedTotalPt, ECalIsolation, e2x5, e5x5, e2x2);
+      electronWP98 = cluster_passes_electronWP98( correctedTotalPt, ECalIsolation, e2x5, e5x5);
+      photonWP90 = cluster_passes_photonWP90( correctedTotalPt, ECalIsolation, e2x5, e5x5, e2x2);
 
 
       
       // Form a l1slhc::L1EGCrystalCluster
       reco::Candidate::PolarLorentzVector p4(correctedTotalPt, weightedPosition.eta(), weightedPosition.phi(), 0.);
-      l1slhc::L1EGCrystalCluster cluster(p4, hovere, ECalIsolation, centerhit.id, totalPtPUcorr, bremStrength);
+      l1slhc::L1EGCrystalCluster cluster(p4, hovere, ECalIsolation, centerhit.id, totalPtPUcorr, bremStrength,
+            e2x2, e2x5, e3x5, e5x5, electronWP98, photonWP90);
       // Save pt array
       cluster.SetCrystalPtInfo(crystalPt);
       params["crystalCount"] = crystalPt.size();
