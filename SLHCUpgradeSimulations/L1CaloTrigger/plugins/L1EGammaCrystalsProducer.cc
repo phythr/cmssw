@@ -87,7 +87,7 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
       edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEBToken_;
       edm::EDGetTokenT<EcalEBTrigPrimDigiCollection> ecalTPEBToken_;
       //edm::EDGetTokenT<EcalRecHitCollection> ecalRecHitEEToken_;
-      //edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
+      edm::EDGetTokenT<HBHERecHitCollection> hcalRecHitToken_;
       //edm::EDGetTokenT< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hcalTPToken_;
       boost::property_tree::ptree towerMap;
       bool useTowerMap;
@@ -152,7 +152,7 @@ L1EGCrystalClusterProducer::L1EGCrystalClusterProducer(const edm::ParameterSet& 
    ecalRecHitEBToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEB"))),
    ecalTPEBToken_(consumes<EcalEBTrigPrimDigiCollection>(iConfig.getParameter<edm::InputTag>("ecalTPEB"))),
    //ecalRecHitEEToken_(consumes<EcalRecHitCollection>(iConfig.getParameter<edm::InputTag>("ecalRecHitEE"))),
-   //hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit")))
+   hcalRecHitToken_(consumes<HBHERecHitCollection>(iConfig.getParameter<edm::InputTag>("hcalRecHit"))),
    //hcalTPToken_(consumes< edm::SortedCollection<HcalTriggerPrimitiveDigi> >(iConfig.getParameter<edm::InputTag>("hcalTP")))
    useTowerMap(iConfig.getUntrackedParameter<bool>("useTowerMap", false)),
    towerMapName(iConfig.getUntrackedParameter<std::string>("towerMapName", "defaultMap.json"))
@@ -189,7 +189,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    }
    
    std::vector<SimpleCaloHit> ecalhits;
-   //std::vector<SimpleCaloHit> hcalhits;
+   std::vector<SimpleCaloHit> hcalhits;
    
    // Retrieve the ecal barrel hits
    // Use ECAL TPs unless otherwise specified
@@ -249,6 +249,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       }
    } // Done loading Rec Hits
    
+   // We don't use end cap at the moment
    //if ( useECalEndcap )
    //{
    //   // Retrieve the ecal endcap hits
@@ -272,30 +273,32 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    //   }
    //}
 
-   // Retrive HCAL hits 
-//   edm::Handle<HBHERecHitCollection> hbhecoll;
-//   //iEvent.getByLabel("hbheprereco", hbhecoll);
-//   //iEvent.getByLabel("hbheUpgradeReco", hbhecoll);
-//   //iEvent.getByLabel("hltHbhereco", hbhecoll);
-//   iEvent.getByToken(hcalRecHitToken_,hbhecoll);
-//   //edm::Handle< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hbhecoll;
-//   //iEvent.getByToken(hcalTPToken_,hbhecoll);
-//   for (auto& hit : *hbhecoll.product())
-//   {
-//      //std::cout << "  -- HCAL TP: " << hit.SOI_compressedEt() << std::endl;
-//      //if ( hit.SOI_compressedEt() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
-//      if ( hit.energy() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
-//        // Need to use proper decompression here https://github.com/cms-sw/cmssw/blob/CMSSW_9_0_X/L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.cc#L97-L114
-//      {
-//         auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
-//         SimpleCaloHit hhit;
-//         hhit.id = hit.id();
-//         hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
-//         //hhit.energy = hit.SOI_compressedEt();
-//         hhit.energy = hit.energy();
-//         hcalhits.push_back(hhit);
-//      }
-//   }
+   if (useRecHits) {
+     // Retrive HCAL hits - using RecHits at the moment
+     edm::Handle<HBHERecHitCollection> hbhecoll;
+     //iEvent.getByLabel("hbheprereco", hbhecoll);
+     //iEvent.getByLabel("hbheUpgradeReco", hbhecoll);
+     //iEvent.getByLabel("hltHbhereco", hbhecoll);
+     iEvent.getByToken(hcalRecHitToken_,hbhecoll);
+     //edm::Handle< edm::SortedCollection<HcalTriggerPrimitiveDigi> > hbhecoll;
+     //iEvent.getByToken(hcalTPToken_,hbhecoll);
+     for (auto& hit : *hbhecoll.product())
+     {
+        //std::cout << "  -- HCAL TP: " << hit.SOI_compressedEt() << std::endl;
+        //if ( hit.SOI_compressedEt() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
+        if ( hit.energy() > 0.1 ) // SOI_compressedEt() Compressed ET for the "Sample of Interest"
+          // Need to use proper decompression here https://github.com/cms-sw/cmssw/blob/CMSSW_9_0_X/L1Trigger/L1TCaloLayer1/src/L1TCaloLayer1FetchLUTs.cc#L97-L114
+        {
+           auto cell = geometryHelper.getHcalGeometry()->getGeometry(hit.id());
+           SimpleCaloHit hhit;
+           hhit.id = hit.id();
+           hhit.position = GlobalVector(cell->getPosition().x(), cell->getPosition().y(), cell->getPosition().z());
+           //hhit.energy = hit.SOI_compressedEt();
+           hhit.energy = hit.energy();
+           hcalhits.push_back(hhit);
+        }
+     }
+   }
 
    // Cluster containters
    std::unique_ptr<l1slhc::L1EGCrystalClusterCollection> trigCrystalClusters (new l1slhc::L1EGCrystalClusterCollection );
@@ -390,7 +393,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             phiStrip[hit.diphi(centerhit)] = hit.pt();
          }
 
-	 // Build 3x5, 5x5 and E2x5 variables
+         // Build 3x5, 5x5 and E2x5 variables
          if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
          {
             e5x5 += hit.energy;
@@ -407,10 +410,10 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          {
             e2x5_2 += hit.energy;
          }
-	 e2x5 = TMath::Max( e2x5_1, e2x5_2 );
-	 params["E2x5"] = e2x5;
-	 params["E3x5"] = e3x5;
-	 params["E5x5"] = e5x5;
+         e2x5 = TMath::Max( e2x5_1, e2x5_2 );
+         params["E2x5"] = e2x5;
+         params["E3x5"] = e3x5;
+         params["E5x5"] = e5x5;
 
          // Isolation and pileup must not use hits used in the cluster
          // As for the endcap hits, well, as far as this algorithm is concerned, caveat emptor...
@@ -538,16 +541,22 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       if ( debug ) std::cout << "Total energy = " << totalEnergy << ", total pt = " << correctedTotalPt << std::endl;
       if ( debug ) std::cout << "Isolation: " << ECalIsolation << std::endl;
 
-      // Calculate H/E
+      // Calculate H/E if we have are using RecHits
+      // else fill with -1. so no one gets confused
+      // and thinks 0. is H/E
       float hcalEnergy = 0.;
-//      for(const auto& hit : hcalhits)
-//      {
-//         if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
-//         {
-//            hcalEnergy += hit.energy;
-//         }
-//      }
-      float hovere = hcalEnergy/params["uncorrectedE"];
+      float hovere;
+      if (useRecHits) {
+        for(const auto& hit : hcalhits)
+        {
+           if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
+           {
+              hcalEnergy += hit.energy;
+           }
+        }
+        hovere = hcalEnergy/params["uncorrectedE"];
+      }
+      else hovere = -1.0;
 
       if ( debug ) std::cout << "H/E: " << hovere << std::endl;
       
@@ -594,12 +603,12 @@ L1EGCrystalClusterProducer::cluster_passes_cuts(const l1slhc::L1EGCrystalCluster
       bool passShowerShape = false;
       
       if ( ( -0.92 + 0.18 * TMath::Exp( -0.04 * cluster_pt ) < (clusterE2x5 / clusterE5x5)) ) {
-	  passShowerShape = true; }
+      passShowerShape = true; }
       if ( (( 0.99 + 5.6 * TMath::Exp( -0.061 * cluster_pt )) > cluster_iso ) ) {
           passIso = true; }
       if ( passShowerShape && passIso ) {
           //std::cout << " --- Passed!" << std::endl;
-	  return true; }
+      return true; }
    }
    return false;
 }
