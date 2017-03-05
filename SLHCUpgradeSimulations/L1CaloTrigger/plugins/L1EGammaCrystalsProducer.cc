@@ -78,6 +78,8 @@ class L1EGCrystalClusterProducer : public edm::EDProducer {
    private:
       virtual void produce(edm::Event&, const edm::EventSetup&);
       bool cluster_passes_cuts(const l1slhc::L1EGCrystalCluster& cluster) const;
+      bool cluster_passes_electronWP98(float &cluster_pt, float &iso, float &e2x5, float &e5x5) const;
+      bool cluster_passes_photonWP90(float &cluster_pt, float &iso, float &e2x5, float &e5x5, float &e2x2) const;
 
       CaloGeometryHelper geometryHelper;
       double EtminForStore;
@@ -335,6 +337,11 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float ECalPileUpEnergy = 0.;
       float upperSideLobePt = 0.;
       float lowerSideLobePt = 0.;
+      float e2x2_1 = 0.;
+      float e2x2_2 = 0.;
+      float e2x2_3 = 0.;
+      float e2x2_4 = 0.;
+      float e2x2 = 0.;
       float e2x5_1 = 0.;
       float e2x5_2 = 0.;
       float e2x5 = 0.;
@@ -393,15 +400,19 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             phiStrip[hit.diphi(centerhit)] = hit.pt();
          }
 
-         // Build 3x5, 5x5 and E2x5 variables
+         // Build 5x5
          if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
          {
             e5x5 += hit.energy;
          }
+
+         // Build 3x5
          if ( abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3 )
          {
             e3x5 += hit.energy;
          }
+
+         // Build E2x5
          if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3 )
          {
             e2x5_1 += hit.energy;
@@ -411,6 +422,28 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             e2x5_2 += hit.energy;
          }
          e2x5 = TMath::Max( e2x5_1, e2x5_2 );
+
+         // Build 2x2, highest energy 2x2 square containing the seed
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == 1) )
+         {
+            e2x2_1 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == -1) )
+         {
+            e2x2_2 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == 1) )
+         {
+            e2x2_3 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == -1) )
+         {
+            e2x2_4 += hit.energy;
+         }
+         e2x2 = TMath::Max( e2x2_1, e2x2_2 );
+         e2x2 = TMath::Max( e2x2, e2x2_3 );
+         e2x2 = TMath::Max( e2x2, e2x2_4 );
+         params["E2x2"] = e2x2;
          params["E2x5"] = e2x5;
          params["E3x5"] = e3x5;
          params["E5x5"] = e5x5;
@@ -559,6 +592,14 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       else hovere = -1.0;
 
       if ( debug ) std::cout << "H/E: " << hovere << std::endl;
+
+
+
+      // Check if cluster passes electron or photon WPs
+      params["electronWP98"] = cluster_passes_electronWP98( correctedTotalPt, ECalIsolation, e2x5, e5x5);
+      params["photonWP90"] = cluster_passes_photonWP90( correctedTotalPt, ECalIsolation, e2x5, e5x5, e2x2);
+
+
       
       // Form a l1slhc::L1EGCrystalCluster
       reco::Candidate::PolarLorentzVector p4(correctedTotalPt, weightedPosition.eta(), weightedPosition.phi(), 0.);
@@ -568,6 +609,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       params["crystalCount"] = crystalPt.size();
       cluster.SetExperimentalParams(params);
       trigCrystalClusters->push_back(cluster);
+
 
       // Save clusters with some cuts
       if ( cluster_passes_cuts(cluster) )
@@ -582,6 +624,40 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
    iEvent.put(std::move(trigCrystalClusters),"EGCrystalCluster");
    iEvent.put(std::move(l1EGammaCrystal), "EGammaCrystal" );
 }
+
+bool
+L1EGCrystalClusterProducer::cluster_passes_electronWP98(float &cluster_pt, float &iso, float &e2x5, float &e5x5) const {
+   // These cuts have been optimized based on SLHC 62X
+   // They will be re-optimized once there are suitable
+   // MC samples available in 90X Phase-2 campaign
+   //
+   // This cut reaches a 98% efficiency for electrons
+   // for offline pt > 35 GeV
+
+   if ( ( -0.92 + 0.18 * TMath::Exp( -0.04  * cluster_pt )) > (e2x5 / e5x5) ) return false;
+   if ( (  0.99 + 5.6  * TMath::Exp( -0.061 * cluster_pt )) < iso ) return false;
+
+   // Passes cuts
+   return true;
+}
+
+bool
+L1EGCrystalClusterProducer::cluster_passes_photonWP90(float &cluster_pt, float &iso, float &e2x5, float &e5x5, float &e2x2) const {
+   // These cuts have been optimized based on SLHC 62X
+   // They will be re-optimized once there are suitable
+   // MC samples available in 90X Phase-2 campaign
+   //
+   // This cut reaches a 90% efficiency for photons
+   // for offline pt > 35 GeV
+
+   if ( ( -0.92 + 0.18 * TMath::Exp( -0.04  * cluster_pt )) > (e2x5 / e5x5) ) return false;
+   if ( (  0.99 + 5.6  * TMath::Exp( -0.061 * cluster_pt )) < iso ) return false;
+   if ( ( e2x2 / e2x5) < 0.9 ) return false;
+
+   // Passes cuts
+   return true;
+}
+
 
 bool
 L1EGCrystalClusterProducer::cluster_passes_cuts(const l1slhc::L1EGCrystalCluster& cluster) const {
