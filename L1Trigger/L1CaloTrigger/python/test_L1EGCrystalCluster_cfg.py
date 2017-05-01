@@ -16,7 +16,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 process.source = cms.Source("PoolSource",
    # Set to do test run on official Phase-2 L1T Ntuples
-   fileNames = cms.untracked.vstring('file:root://eoscms//eos/cms/store/group/dpg_trigger/comm_trigger/L1Trigger/rekovic/PhaseIIFall16DR82-820_backport_L1TMC_v1.2.2/step2_ZEE_PU200_100ev_FEVTDEBUGHLT_customHigherPtTrackParticles.root')
+   fileNames = cms.untracked.vstring('/store/mc/PhaseIISpring17D/SingleE_FlatPt-8to100/GEN-SIM-DIGI-RAW/PU200_90X_upgrade2023_realistic_v9-v1/120000/002A4121-132C-E711-87AD-008CFAFBF618.root')
 )
 
 # All this stuff just runs the various EG algorithms that we are studying
