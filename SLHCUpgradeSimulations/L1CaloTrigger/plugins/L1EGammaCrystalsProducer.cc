@@ -252,6 +252,13 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float ECalPileUpEnergy4to5 = 0.;
       float upperSideLobePt = 0.;
       float lowerSideLobePt = 0.;
+      float e1x1 = 0.;
+      float e1x2_1 = 0.;
+      float e1x2_2 = 0.;
+      float e1x2 = 0.;
+      float e2x1_1 = 0.;
+      float e2x1_2 = 0.;
+      float e2x1 = 0.;
       float e2x2_1 = 0.;
       float e2x2_2 = 0.;
       float e2x2_3 = 0.;
@@ -296,6 +303,7 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          }
 
          // Build 2x2, 2x3, 3x5, 5x5 and E2x5 variables
+         // 5x5
          if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
          {
             e5x5 += hit.energy;
@@ -340,6 +348,29 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
          {
             e2x5_2 += hit.energy;
          }
+         // 2x1
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) == 0 )
+         {
+            e2x1_1 += hit.energy;
+         }
+         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) == 0 )
+         {
+            e2x1_2 += hit.energy;
+         }
+         // 1x2
+         if ( hit.dieta(centerhit) == 0 && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == 1) )
+         {
+            e1x2_1 += hit.energy;
+         }
+         if ( hit.dieta(centerhit) == 0 && (hit.diphi(centerhit) == 0 || hit.diphi(centerhit) == -1) )
+         {
+            e1x2_2 += hit.energy;
+         }
+         // 1x1 - just so we know there's no other corrections to it later
+         if ( hit.dieta(centerhit) == 0 && hit.diphi(centerhit) == 0 )
+         {
+            e1x1 += hit.energy;
+         }
 	 e2x2 = TMath::Max( e2x2_1, e2x2_2 );
 	 e2x2 = TMath::Max( e2x2, e2x2_3 );
 	 e2x2 = TMath::Max( e2x2, e2x2_4 );
@@ -350,6 +381,11 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 	 params["E2x5"] = e2x5;
 	 params["E3x5"] = e3x5;
 	 params["E5x5"] = e5x5;
+	 e2x1 = TMath::Max( e2x1_1, e2x1_2 );
+	 params["E2x1"] = e2x1;
+	 e1x2 = TMath::Max( e1x2_1, e1x2_2 );
+	 params["E1x2"] = e1x2;
+	 params["E1x1"] = e1x1;
 
          // Isolation and pileup must not use hits used in the cluster
          // As for the endcap hits, well, as far as this algorithm is concerned, caveat emptor...
