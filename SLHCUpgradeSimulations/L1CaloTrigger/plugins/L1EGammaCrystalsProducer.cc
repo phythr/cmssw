@@ -304,12 +304,16 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
 
          // Build 2x2, 2x3, 3x5, 5x5 and E2x5 variables
          // 5x5
-         if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
+         //if ( abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3 )
+         if ( (!centerhit.isEndcapHit && abs(hit.dieta(centerhit)) < 3 && abs(hit.diphi(centerhit)) < 3)
+              || (centerhit.isEndcapHit && fabs(hit.deta(centerhit)) <= 0.0173*2 && fabs(hit.dphi(centerhit) <= 0.0173*2)) )
          {
             e5x5 += hit.energy;
          }
          // 3x5
-         if ( abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3 )
+         //if ( abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3 )
+         if ( (!centerhit.isEndcapHit && abs(hit.dieta(centerhit)) < 2 && abs(hit.diphi(centerhit)) < 3)
+              || (centerhit.isEndcapHit && fabs(hit.deta(centerhit)) <= 0.0173*1 && fabs(hit.dphi(centerhit) <= 0.0173*2)) )
          {
             e3x5 += hit.energy;
          }
@@ -340,11 +344,15 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
             e2x3_2 += hit.energy;
          }
          // 2x5
-         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3 )
+         //if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3 )
+         if ( (!centerhit.isEndcapHit && (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == 1) && abs(hit.diphi(centerhit)) < 3)
+              || (centerhit.isEndcapHit && hit.deta(centerhit) >= 0.0 && hit.deta(centerhit) <= 0.0173 && fabs(hit.dphi(centerhit) <= 0.0173*2)) )
          {
             e2x5_1 += hit.energy;
          }
-         if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) < 3 )
+         //if ( (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) < 3 )
+         if ( (!centerhit.isEndcapHit && (hit.dieta(centerhit) == 0 || hit.dieta(centerhit) == -1) && abs(hit.diphi(centerhit)) < 3)
+              || (centerhit.isEndcapHit && hit.deta(centerhit) <= 0.0 && hit.deta(centerhit) >= -0.0173 && fabs(hit.dphi(centerhit) <= 0.0173*2)) )
          {
             e2x5_2 += hit.energy;
          }
@@ -583,24 +591,24 @@ L1EGCrystalClusterProducer::cluster_passes_cuts(const l1slhc::L1EGCrystalCluster
    // The following cut is based off of what was shown in the Phase-2 meeting
    // 23 June 2016.  Only the barrel is considered.  And track isolation
    // is not included.
-   if ( fabs(cluster.eta()) < 1.479 )
-   {
-      //std::cout << "Starting passing check" << std::endl;
-      float cluster_pt = cluster.pt();
-      float clusterE2x5 = cluster.GetExperimentalParam("E2x5");
-      float clusterE5x5 = cluster.GetExperimentalParam("E5x5");
-      float cluster_iso = cluster.isolation();
-      bool passIso = false;
-      bool passShowerShape = false;
-      
-      if ( ( -0.92 + 0.18 * TMath::Exp( -0.04 * cluster_pt ) < (clusterE2x5 / clusterE5x5)) ) {
-	  passShowerShape = true; }
-      if ( (( 0.99 + 5.6 * TMath::Exp( -0.061 * cluster_pt )) > cluster_iso ) ) {
-          passIso = true; }
-      if ( passShowerShape && passIso ) {
-          //std::cout << " --- Passed!" << std::endl;
-	  return true; }
-   }
+//   if ( fabs(cluster.eta()) < 1.479 )
+//   {
+   //std::cout << "Starting passing check" << std::endl;
+   float cluster_pt = cluster.pt();
+   float clusterE2x5 = cluster.GetExperimentalParam("E2x5");
+   float clusterE5x5 = cluster.GetExperimentalParam("E5x5");
+   float cluster_iso = cluster.isolation();
+   bool passIso = false;
+   bool passShowerShape = false;
+   
+   if ( ( -0.92 + 0.18 * TMath::Exp( -0.04 * cluster_pt ) < (clusterE2x5 / clusterE5x5)) ) {
+   passShowerShape = true; }
+   if ( (( 0.99 + 5.6 * TMath::Exp( -0.061 * cluster_pt )) > cluster_iso ) ) {
+       passIso = true; }
+   if ( passShowerShape && passIso ) {
+       //std::cout << " --- Passed!" << std::endl;
+   return true; }
+//   }
    return false;
 }
 
