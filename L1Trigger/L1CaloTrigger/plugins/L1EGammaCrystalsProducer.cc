@@ -676,14 +676,102 @@ void L1EGCrystalClusterProducer::produce(edm::Event& iEvent, const edm::EventSet
       float sineTerm = sin(weightedPosition.theta());
       float minimum = 1e-5;
       float calibratedE = calibratedPt/ TMath::Max( sineTerm, minimum);
+
+      float hcal_dR0p05 = 0.;
+      float hcal_dR0p075 = 0.;
+      float hcal_dR0p1 = 0.;
+      float hcal_dR0p125 = 0.;
+      float hcal_dR0p15 = 0.;
+      float hcal_dR0p2 = 0.;
+      float hcal_dR0p3 = 0.;
+      float hcal_dR0p4 = 0.;
+      float hcal_dR0p5 = 0.;
+
+      float hcal_dR0p05_nTowers = 0.;
+      float hcal_dR0p075_nTowers = 0.;
+      float hcal_dR0p1_nTowers = 0.;
+      float hcal_dR0p125_nTowers = 0.;
+      float hcal_dR0p15_nTowers = 0.;
+      float hcal_dR0p2_nTowers = 0.;
+      float hcal_dR0p3_nTowers = 0.;
+      float hcal_dR0p4_nTowers = 0.;
+      float hcal_dR0p5_nTowers = 0.;
+
       if (hcalhits.size() > 0) {
+        int cnt = 0;
         for(const auto& hit : hcalhits)
         {
+           cnt++;
+           //std::cout << " - " << cnt << "  dEta: " << fabs(hit.deta(centerhit)) << "   dPhi: " << fabs(hit.dphi(centerhit)) << std::endl;
            if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
            {
               hcalEnergy += hit.energy;
+              //std::cout << " --- " << cnt << "  hit energy: " << hit.energy << "   total HCAL: " << hcalEnergy << std::endl;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.05 && fabs(hit.dphi(centerhit)) < 0.05 )
+           {
+              hcal_dR0p05 += hit.energy;
+              hcal_dR0p05_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.075 && fabs(hit.dphi(centerhit)) < 0.075 )
+           {
+              hcal_dR0p075 += hit.energy;
+              hcal_dR0p075_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.10 && fabs(hit.dphi(centerhit)) < 0.10 )
+           {
+              hcal_dR0p1 += hit.energy;
+              hcal_dR0p1_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.125 && fabs(hit.dphi(centerhit)) < 0.125 )
+           {
+              hcal_dR0p125 += hit.energy;
+              hcal_dR0p125_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.15 && fabs(hit.dphi(centerhit)) < 0.15 )
+           {
+              hcal_dR0p15 += hit.energy;
+              hcal_dR0p15_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.20 && fabs(hit.dphi(centerhit)) < 0.20 )
+           {
+              hcal_dR0p2 += hit.energy;
+              hcal_dR0p2_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.30 && fabs(hit.dphi(centerhit)) < 0.30 )
+           {
+              hcal_dR0p3 += hit.energy;
+              hcal_dR0p3_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.40 && fabs(hit.dphi(centerhit)) < 0.40 )
+           {
+              hcal_dR0p4 += hit.energy;
+              hcal_dR0p4_nTowers += 1;
+           }
+           if ( fabs(hit.deta(centerhit)) < 0.50 && fabs(hit.dphi(centerhit)) < 0.50 )
+           {
+              hcal_dR0p5 += hit.energy;
+              hcal_dR0p5_nTowers += 1;
            }
         }
+        params["hcal_dR0p05"] = hcal_dR0p05*sineTerm;
+        params["hcal_dR0p075"] = hcal_dR0p075*sineTerm;
+        params["hcal_dR0p1"] = hcal_dR0p1*sineTerm;
+        params["hcal_dR0p125"] = hcal_dR0p125*sineTerm;
+        params["hcal_dR0p15"] = hcal_dR0p15*sineTerm;
+        params["hcal_dR0p2"] = hcal_dR0p2*sineTerm;
+        params["hcal_dR0p3"] = hcal_dR0p3*sineTerm;
+        params["hcal_dR0p4"] = hcal_dR0p4*sineTerm;
+        params["hcal_dR0p5"] = hcal_dR0p5*sineTerm;
+        params["hcal_dR0p05_nTowers"] = hcal_dR0p05_nTowers;
+        params["hcal_dR0p075_nTowers"] = hcal_dR0p075_nTowers;
+        params["hcal_dR0p1_nTowers"] = hcal_dR0p1_nTowers;
+        params["hcal_dR0p125_nTowers"] = hcal_dR0p125_nTowers;
+        params["hcal_dR0p15_nTowers"] = hcal_dR0p15_nTowers;
+        params["hcal_dR0p2_nTowers"] = hcal_dR0p2_nTowers;
+        params["hcal_dR0p3_nTowers"] = hcal_dR0p3_nTowers;
+        params["hcal_dR0p4_nTowers"] = hcal_dR0p4_nTowers;
+        params["hcal_dR0p5_nTowers"] = hcal_dR0p5_nTowers;
         hovere = hcalEnergy/params["uncorrectedE"];
         hovereCalibPt = hcalEnergy/calibratedE;
       }
