@@ -2,7 +2,7 @@ import FWCore.ParameterSet.Config as cms
 
 from Configuration.StandardSequences.Eras import eras
 
-process = cms.Process("L1AlgoTest",eras.phase2_common)
+process = cms.Process("L1AlgoTest",eras.Phase2_trigger)
 
 process.load('Configuration.StandardSequences.Services_cff')
 process.load("FWCore.MessageService.MessageLogger_cfi")
@@ -40,6 +40,10 @@ process.GlobalTag = GlobalTag(process.GlobalTag, '93X_upgrade2023_realistic_v5',
 # Choose a 2023 geometry!
 process.load('Configuration.Geometry.GeometryExtended2023D17Reco_cff')
 process.load('Configuration.StandardSequences.MagneticField_cff')
+
+# Add HCAL Transcoder
+process.load('SimCalorimetry.HcalTrigPrimProducers.hcaltpdigi_cff')
+process.load('CalibCalorimetry.CaloTPG.CaloTPGTranscoder_cfi')
 
 
 
