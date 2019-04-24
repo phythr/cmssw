@@ -45,8 +45,15 @@ class HGCalTriggerTools {
     unsigned layers(DetId::Detector type) const ;
     unsigned layer(const DetId&) const;
     unsigned layerWithOffset(const DetId&) const;
+    bool isEm(const DetId&) const;
+    bool isHad(const DetId& id) const {return !isEm(id);}
+    bool isSilicon(const DetId&) const;
+    bool isScintillator(const DetId& id) const {return !isSilicon(id);}
     int zside(const DetId&) const;
-    int thicknessIndex(const DetId&) const;
+    // tc argument is needed because of the impossibility
+    // to know whether the ID is a TC or a sensor cell
+    // in the v8 geometry detid scheme
+    int thicknessIndex(const DetId&, bool tc=false) const;
 
     unsigned lastLayerEE() const {return eeLayers_;}
     unsigned lastLayerFH() const {return eeLayers_+fhLayers_;}
@@ -84,6 +91,8 @@ class HGCalTriggerTools {
     unsigned fhLayers_;
     unsigned bhLayers_;
     unsigned totalLayers_;
+
+    int sensorCellThicknessV8(const DetId& id) const;
 };
 
 

@@ -30,7 +30,7 @@ L1TowerCalibrationProducer = cms.EDProducer("L1TowerCalibrator",
     skipCalibrations = cms.bool(False),
     #debug = cms.bool(True),
     l1CaloTowers = cms.InputTag("L1EGammaClusterEmuProducer","L1CaloTowerCollection"),
-    L1HgcalTowersInputTag = cms.InputTag("hgcalTriggerPrimitiveDigiProducer","tower"),
+    L1HgcalTowersInputTag = cms.InputTag("hgcalTowerProducer:HGCalTowerProcessor"),
     hcalDigis = cms.InputTag("simHcalTriggerPrimitiveDigis"),
 	nHits_to_nvtx_params = cms.VPSet( # Parameters derived on 6 March 2019 on 10_3_X MTD samples
 		cms.PSet(

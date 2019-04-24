@@ -2,7 +2,7 @@ import FWCore.ParameterSet.Config as cms
 
 L1TkMuons = cms.EDProducer("L1TkMuonProducer",
     ###############################################
-    ############################################### common stuff    
+    ############################################### common stuff
     L1BMTFInputTag  = cms.InputTag("simKBmtfDigis","BMTF"),
     L1OMTFInputTag  = cms.InputTag("simOmtfDigis","OMTF"),
     L1EMTFInputTag  = cms.InputTag("simEmtfDigis","EMTF"),
@@ -20,6 +20,7 @@ L1TkMuons = cms.EDProducer("L1TkMuonProducer",
 #    closest = cms.bool( True ),
     correctGMTPropForTkZ = cms.bool(True),
     use5ParameterFit = cms.bool(False), #use 4-pars by defaults
+    useTPMatchWindows = cms.bool(True),
     # emtfMatchAlgoVersion = cms.int32( 1 ),        # version of matching EMTF with Trackes (1 or 2)
     emtfMatchAlgoVersion = cms.string( 'DynamicWindows' ), # version of matching EMTF with Trackes (string ID) : TP, DynamicWindows
     ###############################################
@@ -48,4 +49,9 @@ L1TkMuons = cms.EDProducer("L1TkMuonProducer",
     min_trk_nstubs = cms.int32(4),
 
 
+)
+
+L1TkMuonsTP = L1TkMuons.clone(
+    emtfMatchAlgoVersion='TP',
+    useTPMatchWindows = True
 )

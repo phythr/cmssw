@@ -71,11 +71,6 @@ public:
 
 private:
   virtual void produce(edm::Event&, const edm::EventSetup&);
-  
-  // algo for endcap regions using dynamic windows for making the match
-  void runOnMTFCollection_v2(const edm::Handle<EMTFTrackCollection>&,
-                          const edm::Handle<L1TTTrackCollectionType>&,
-                          L1TkMuonParticleCollection& tkMuons) const;
 
   // algo for endcap regions using dynamic windows for making the match trk + muStub
   void runOnMuonHitCollection(const edm::Handle<EMTFHitCollection>&,
@@ -86,6 +81,8 @@ private:
   AlgoType emtfMatchAlgoVersion_ ;         
 
   std::unique_ptr<L1TkMuCorrDynamicWindows> dwcorr_;
+  bool requireBX0_;
+  int  mu_stub_station_;
 
   const edm::EDGetTokenT< EMTFTrackCollection >          emtfTCToken; // the track collection, directly from the EMTF and not formatted by GT
   const edm::EDGetTokenT< EMTFHitCollection >            emtfHCToken; // the hit collection, directly from the EMTF which stored the input Hits
@@ -102,6 +99,9 @@ L1TkMuonStubProducer::L1TkMuonStubProducer(const edm::ParameterSet& iConfig) :
    // configuration of the EMTF algorithm type
    std::string emtfMatchAlgoVersionString = iConfig.getParameter<std::string>("emtfMatchAlgoVersion");
    std::transform(emtfMatchAlgoVersionString.begin(), emtfMatchAlgoVersionString.end(), emtfMatchAlgoVersionString.begin(), ::tolower); // make lowercase
+
+   mu_stub_station_ = iConfig.getParameter<int>("mu_stub_station");
+   requireBX0_ = iConfig.getParameter<bool>("require_BX0");
 
    if (emtfMatchAlgoVersionString == "dynamicwindows")
       emtfMatchAlgoVersion_ = kDynamicWindows;
@@ -166,7 +166,6 @@ L1TkMuonStubProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
   edm::Handle<L1TTTrackCollectionType> l1tksH;
   iEvent.getByToken(trackToken, l1tksH);
 
-  L1TkMuonParticleCollection oc_emtf_tkmuon;
   L1TkMuonParticleCollection oc_endcap_tkmuonStub;
 
   // process each of the MTF collections separately! -- we don't want to filter the muons
@@ -177,7 +176,7 @@ L1TkMuonStubProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
   // now combine all trk muons into a single output collection!
   std::unique_ptr<L1TkMuonParticleCollection> oc_tkmuon(new L1TkMuonParticleCollection());
-  for (const auto& p : {oc_emtf_tkmuon}){
+  for (const auto& p : {oc_endcap_tkmuonStub}){
     oc_tkmuon->insert(oc_tkmuon->end(), p.begin(), p.end());
   }
 
@@ -187,68 +186,26 @@ L1TkMuonStubProducer::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 
 
 void
-L1TkMuonStubProducer::runOnMTFCollection_v2(const edm::Handle<EMTFTrackCollection>& muonH,
-                                     const edm::Handle<L1TTTrackCollectionType>& l1tksH,
-                                     L1TkMuonParticleCollection& tkMuons) const
-{
-  const EMTFTrackCollection& l1mus = (*muonH.product());
-  const L1TTTrackCollectionType& l1trks = (*l1tksH.product());
-  auto corr_mu_idxs = dwcorr_->find_match(l1mus, l1trks);
-  // it's a vector with as many entries as the L1TT vector.
-  // >= 0 : the idx in the EMTF vector of matched mu
-  // < 0: no match
-
-  // sanity check
-  if (corr_mu_idxs.size() != l1trks.size())
-    throw cms::Exception("TkMuAlgoOutput") << "the size of tkmu indices does not match the size of input trk collection\n";
-  
-  for (uint il1ttrack = 0; il1ttrack < corr_mu_idxs.size(); ++il1ttrack)
-  {
-    int emtf_idx = corr_mu_idxs.at(il1ttrack);
-    if (emtf_idx < 0)
-      continue;
-
-    const L1TTTrackType& matchTk = l1trks[il1ttrack];
-    const auto& p3 = matchTk.getMomentum(dwcorr_->get_n_trk_par());
-    const auto& tkv3 = matchTk.getPOCA(dwcorr_->get_n_trk_par());
-    float p4e = sqrt(0.105658369*0.105658369 + p3.mag2() );
-    math::XYZTLorentzVector l1tkp4(p3.x(), p3.y(), p3.z(), p4e);
-
-    edm::Ref< RegionalMuonCandBxCollection > l1muRef; // FIXME! The reference to the muon is null 
-    edm::Ptr< L1TTTrackType > l1tkPtr(l1tksH, il1ttrack);
-    float trkisol = -999; // FIXME: now doing as in the TP algo
-    L1TkMuonParticle l1tkmu(l1tkp4, l1muRef, l1tkPtr, trkisol);
-    l1tkmu.setTrkzVtx( (float)tkv3.z() );
-    
-    tkMuons.push_back(l1tkmu);
-  }
-
-
-  return;
-}
-
-void
 L1TkMuonStubProducer::runOnMuonHitCollection(const edm::Handle<EMTFHitCollection>& muonStubH,
                                      const edm::Handle<L1TTTrackCollectionType>& l1tksH,
                                      L1TkMuonParticleCollection& tkMuons) const
-{
-  const EMTFHitCollection& l1mus = (*muonStubH.product());
-  const L1TTTrackCollectionType& l1trks = (*l1tksH.product());
-  const int myStation = 2;
-  auto corr_mu_idxs = dwcorr_->find_match_stub(l1mus, l1trks, myStation);
-  //auto corr_mu_idxs = dwcorr_->find_match(l1mus, l1trks);
-  // it's a vector with as many entries as the L1TT vector.
-  // >= 0 : the idx in the EMTF vector of matched mu
-  // < 0: no match
 
+{
+  const EMTFHitCollection& l1muStubs = (*muonStubH.product());
+  const L1TTTrackCollectionType& l1trks = (*l1tksH.product());
+  auto corr_muStub_idxs = dwcorr_->find_match_stub(l1muStubs, l1trks, mu_stub_station_, requireBX0_);
+  // it's a vector with as many entries as the L1TT vector.
+  // >= 0 : the idx in the muStub vector of matched muStubs
+  // < 0: no match
+  
   // sanity check
-  if (corr_mu_idxs.size() != l1trks.size())
+  if (corr_muStub_idxs.size() != l1trks.size())
     throw cms::Exception("TkMuAlgoOutput") << "the size of tkmu indices does not match the size of input trk collection\n";
   
-  for (uint il1ttrack = 0; il1ttrack < corr_mu_idxs.size(); ++il1ttrack)
+  for (uint il1ttrack = 0; il1ttrack < corr_muStub_idxs.size(); ++il1ttrack)
   {
-    int emtf_idx = corr_mu_idxs.at(il1ttrack);
-    if (emtf_idx < 0)
+    int muStub_idx = corr_muStub_idxs.at(il1ttrack);
+    if (muStub_idx < 0)
       continue;
 
     const L1TTTrackType& matchTk = l1trks[il1ttrack];

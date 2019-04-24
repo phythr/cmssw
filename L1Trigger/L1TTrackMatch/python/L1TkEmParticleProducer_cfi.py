@@ -28,16 +28,30 @@ L1TkPhotons = cms.EDProducer("L1TkEmParticleProducer",
         DRmin = cms.double( 0.07),
         DRmax = cms.double( 0.30 ),
         PrimaryVtxConstrain = cms.bool( False ),  # default = False
-						  # if set to True, the L1TkPrimaryVertex is used to constrain
-						  # the tracks entering in the calculation of the isolatiom.
+						  # if set to True, the default isolation is the PV constrained one, where L1TkPrimaryVertex is used to constrain
+						  # the tracks entering in the calculation of the isolation 
+                                      # if set to False, the isolation is computed and stored, but not used 
         #DeltaZConstrain = cms.bool( False ),  # default = False
                                                   # if set to True, constrain to the z of the leading
 						  # track within DR < DRmax
-        DeltaZMax = cms.double( 999. ),    # in cm. Used only when PrimaryVtxConstrain = True
-        L1VertexInputTag = cms.InputTag("NotUsed"),     # Used only when PrimaryVtxConstrain = True
+        DeltaZMax = cms.double( 0.6 ),    # in cm. Used only to compute the isolation with PrimaryVtxConstrain 
+        L1VertexInputTag = cms.InputTag("L1TkPrimaryVertex"),     # in cm. Used to compute the isolation with PrimaryVtxConstrain 
 )
 
 
 L1TkPhotonsTightIsol = L1TkPhotons.clone()
 L1TkPhotonsTightIsol.IsoCut = cms.double( 0.10)
+
+#### Additional collections that right now only the menu team is using - to be renamed/redefined by the EGamma group
+# The important change is the EG seed -> PhaseII instead of PhaseI
+
+L1TkPhotonsCrystal=L1TkPhotons.clone()
+L1TkPhotonsCrystal.L1EGammaInputTag = cms.InputTag("L1EGammaClusterEmuProducer", "L1EGammaCollectionBXVEmulator")
+L1TkPhotonsCrystal.IsoCut = cms.double(-0.1)
+
+
+L1TkPhotonsHGC=L1TkPhotons.clone()
+L1TkPhotonsHGC.L1EGammaInputTag = cms.InputTag("l1EGammaEEProducer","L1EGammaCollectionBXVWithCuts")
+L1TkPhotonsHGC.IsoCut = cms.double(-0.1)
+
 
